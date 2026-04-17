@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f1419">
+    <title>WhatsApp Pro</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+        :root{--bg-primary:#0f1419;--bg-secondary:#1a1f2e;--bg-input:#2a2f3e;--accent:#00d26a;--accent-hover:#00b894;--text-primary:#ffffff;--text-secondary:#8b9bb4;--danger:#ff6b6b;--warning:#ffd700}
+        html,body{height:100%;width:100%;overflow:hidden;position:fixed;background:var(--bg-primary);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+
+        .auth-screen{position:fixed;inset:0;background:var(--bg-primary);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;padding:20px}
+        .auth-screen.hidden{display:none}
+        .auth-logo{width:120px;height:120px;background:linear-gradient(135deg,var(--accent),var(--accent-hover));border-radius:30px;display:flex;align-items:center;justify-content:center;font-size:60px;margin-bottom:30px;box-shadow:0 20px 60px rgba(0,210,106,0.3)}
+        .auth-title{font-size:28px;font-weight:700;margin-bottom:10px;background:linear-gradient(135deg,var(--accent),var(--accent-hover));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .auth-subtitle{color:var(--text-secondary);margin-bottom:40px;text-align:center}
+        .auth-input{width:100%;max-width:320px;padding:18px 25px;border:2px solid var(--bg-input);border-radius:15px;background:var(--bg-secondary);color:var(--text-primary);font-size:18px;outline:none;transition:border-color .3s;margin-bottom:20px}
+        .auth-input:focus{border-color:var(--accent)}
+        .auth-btn{width:100%;max-width:320px;padding:18px;border:none;border-radius:15px;background:var(--accent);color:white;font-size:18px;font-weight:700;cursor:pointer;transition:all .3s;box-shadow:0 10px 30px rgba(0,210,106,0.3)}
+        .auth-btn:active{transform:scale(.98)}
+
+        .app-container{display:none;height:100vh;height:100dvh;width:100%;position:relative}
+        .app-container.active{display:flex}
+
+        .sidebar{width:100%;max-width:420px;background:var(--bg-secondary);border-right:1px solid var(--bg-input);display:flex;flex-direction:column;height:100%;flex-shrink:0}
+        @media(max-width:768px){.sidebar{position:absolute;width:100%;max-width:100%;z-index:100;transition:transform .3s ease}.sidebar.hidden{transform:translateX(-100%)}}
+
+        .sidebar-header{padding:15px 20px;background:var(--bg-secondary);border-bottom:1px solid var(--bg-input);display:flex;justify-content:space-between;align-items:center}
+        .user-info{display:flex;align-items:center;gap:12px}
+        .user-avatar{width:45px;height:45px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+        .user-name{font-weight:600;font-size:16px}
+        .header-actions{display:flex;gap:10px}
+        .icon-btn{background:none;border:none;color:var(--text-secondary);font-size:22px;cursor:pointer;padding:8px;border-radius:50%;transition:all .2s;width:40px;height:40px;display:flex;align-items:center;justify-content:center}
+        .icon-btn:hover,.icon-btn:active{background:var(--bg-input);color:var(--text-primary)}
+
+        .search-box{padding:12px 20px;background:var(--bg-primary)}
+        .search-input{width:100%;padding:12px 20px;border:none;border-radius:25px;background:var(--bg-input);color:var(--text-primary);font-size:15px;outline:none}
+        .search-input::placeholder{color:var(--text-secondary)}
+
+        .add-contact-bar{padding:10px 20px;background:var(--bg-primary);border-bottom:1px solid var(--bg-input);display:none}
+        .add-contact-bar.show{display:block}
+        .add-contact-input{width:100%;padding:12px 15px;border:1px solid var(--bg-input);border-radius:12px;background:var(--bg-secondary);color:var(--text-primary);font-size:15px;margin-bottom:8px}
+        .add-contact-btn{width:100%;padding:12px;border:none;border-radius:12px;background:var(--accent);color:white;font-weight:600;cursor:pointer}
+
+        .chat-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+        .chat-item{padding:15px 20px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .2s;border-bottom:1px solid rgba(255,255,255,.05)}
+        .chat-item:hover,.chat-item.active{background:rgba(255,255,255,.05)}
+
+        .chat-avatar-wrap{position:relative;flex-shrink:0}
+        .chat-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#f093fb,#f5576c);display:flex;align-items:center;justify-content:center;font-size:24px}
+        .online-dot{position:absolute;bottom:2px;right:2px;width:14px;height:14px;background:var(--accent);border-radius:50%;border:3px solid var(--bg-secondary);display:none}
+        .online-dot.visible{display:block}
+        .online-dot.typing-indicator{background:var(--warning);animation:pulseDot 1.5s infinite}
+        @keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.2);opacity:.8}}
+
+        .chat-details{flex:1;min-width:0}
+        .chat-name-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px}
+        .chat-name{font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .chat-id-badge{font-size:9px;background:var(--bg-input);padding:2px 8px;border-radius:10px;color:var(--accent);flex-shrink:0;white-space:nowrap}
+        .chat-time{font-size:11px;color:var(--text-secondary);flex-shrink:0}
+        .chat-preview{font-size:14px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+        .chat-area{flex:1;display:flex;flex-direction:column;background:var(--bg-primary);height:100%;position:relative}
+        .chat-header{padding:12px 20px;background:var(--bg-secondary);border-bottom:1px solid var(--bg-input);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+        .chat-header-left{display:flex;align-items:center;gap:15px;flex:1;min-width:0}
+        .back-btn{display:none;background:none;border:none;color:var(--text-primary);font-size:24px;cursor:pointer;padding:4px}
+        @media(max-width:768px){.back-btn{display:block}}
+        .header-info{flex:1;min-width:0}
+        .header-title{font-weight:600;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .header-status{font-size:13px;color:var(--text-secondary);margin-top:2px}
+        .header-status.online{color:var(--accent)}
+        .header-status.typing-indicator{color:var(--warning)}
+
+        .messages-scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+        .messages-container{display:flex;flex-direction:column;justify-content:flex-end;min-height:100%;padding:15px;padding-bottom:10px}
+        .empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary)}
+        .empty-icon{font-size:64px;margin-bottom:20px;opacity:.5}
+        .empty-text{font-size:16px;line-height:1.5}
+
+        .message{max-width:85%;margin-bottom:8px;padding:10px 14px;border-radius:18px;position:relative;animation:msgAppear .3s ease;word-wrap:break-word;cursor:pointer;user-select:none;-webkit-user-select:none}
+        @keyframes msgAppear{from{opacity:0;transform:translateY(20px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+        .message.sent{background:var(--accent);margin-left:auto;border-bottom-right-radius:4px}
+        .message.received{background:var(--bg-input);margin-right:auto;border-bottom-left-radius:4px}
+        .message.pinned-msg{border-left:4px solid var(--warning)}
+        .message-sender{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px;opacity:.9}
+        .message-text{font-size:15px;line-height:1.4;word-break:break-word}
+        .message-time{font-size:11px;opacity:.7;margin-top:6px;text-align:right}
+
+        .message.hashtag-msg{background:linear-gradient(135deg,#667eea,#764ba2)!important;max-width:95%!important;margin-left:auto!important;margin-right:auto!important;padding:20px!important;border-radius:20px!important;text-align:center}
+        .message.hashtag-msg .message-text{font-size:28px;font-weight:800;text-transform:uppercase;letter-spacing:2px;text-shadow:2px 2px 4px rgba(0,0,0,.3);line-height:1.2}
+
+        /* Special card messages */
+        .special-card{background:linear-gradient(135deg,#1e3a5f,#2d1b69);border-radius:16px;padding:16px;margin:4px 0;border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:all .2s;max-width:95%;margin-left:auto;margin-right:auto}
+        .special-card:active{transform:scale(.97)}
+        .special-card-icon{font-size:32px;margin-bottom:8px}
+        .special-card-title{font-size:16px;font-weight:700;margin-bottom:4px}
+        .special-card-desc{font-size:12px;color:var(--text-secondary)}
+        .special-card-tap{font-size:11px;color:var(--accent);margin-top:8px;font-weight:600}
+
+        .input-area{padding:12px 16px;background:var(--bg-secondary);border-top:1px solid var(--bg-input);flex-shrink:0}
+        .input-wrapper{display:flex;align-items:flex-end;gap:12px}
+        .message-input{flex:1;padding:12px 20px;border:none;border-radius:24px;background:var(--bg-input);color:var(--text-primary);font-size:16px;outline:none;min-height:48px;max-height:120px;resize:none;font-family:inherit}
+        .message-input::placeholder{color:var(--text-secondary)}
+        .send-btn{width:48px;height:48px;border-radius:50%;background:var(--accent);border:none;color:white;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;box-shadow:0 4px 15px rgba(0,210,106,.3)}
+        .send-btn:active{transform:scale(.92)}
+
+        /* Context Menu */
+        .context-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;display:none;opacity:0;transition:opacity .2s}
+        .context-overlay.show{display:block;opacity:1}
+        .context-menu{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);background:var(--bg-secondary);border-radius:20px;width:90%;max-width:320px;max-height:80vh;overflow-y:auto;z-index:2001;display:none;box-shadow:0 25px 50px rgba(0,0,0,.5);border:1px solid var(--bg-input)}
+        .context-menu.show{display:block;animation:menuAppear .2s ease forwards}
+        @keyframes menuAppear{to{transform:translate(-50%,-50%) scale(1)}}
+        .context-header{padding:20px;border-bottom:1px solid var(--bg-input);text-align:center}
+        .context-preview{font-size:14px;color:var(--text-secondary);margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .context-actions{padding:10px}
+        .context-action{display:flex;align-items:center;gap:15px;padding:15px 20px;border-radius:12px;cursor:pointer;transition:background .2s;font-size:16px}
+        .context-action:hover,.context-action:active{background:var(--bg-input)}
+        .context-action.danger{color:var(--danger)}
+        .context-icon{font-size:22px;width:30px;text-align:center}
+        .context-divider{height:1px;background:var(--bg-input);margin:8px 15px}
+
+        /* Modal */
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:3000;display:none;align-items:center;justify-content:center;padding:20px}
+        .modal-overlay.show{display:flex}
+        .modal-box{background:var(--bg-secondary);border-radius:24px;padding:30px;width:100%;max-width:340px;text-align:center;border:1px solid var(--bg-input)}
+        .modal-input{width:100%;padding:16px;border:2px solid var(--bg-input);border-radius:14px;background:var(--bg-primary);color:var(--text-primary);font-size:24px;text-align:center;letter-spacing:8px;margin-bottom:20px;outline:none;transition:border-color .3s}
+        .modal-input:focus{border-color:var(--accent)}
+        .modal-btn{width:100%;padding:16px;border:none;border-radius:14px;background:var(--accent);color:white;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px}
+        .modal-btn:active{transform:scale(.98)}
+        .modal-btn.secondary{background:var(--bg-input);color:var(--text-primary)}
+
+        /* Toast */
+        .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--bg-secondary);padding:14px 28px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.3);z-index:4000;display:flex;align-items:center;gap:10px;transition:transform .3s;border:1px solid var(--bg-input)}
+        .toast.show{transform:translateX(-50%) translateY(0)}
+
+        .connection-bar{position:fixed;top:0;left:0;right:0;background:var(--danger);color:white;text-align:center;padding:8px;font-size:13px;z-index:5000;display:none}
+        .connection-bar.show{display:block}
+
+        ::-webkit-scrollbar{width:6px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:var(--bg-input);border-radius:3px}
+        .noselect{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+        /* Fullscreen overlays */
+        .fullscreen-overlay{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:6000;display:none;flex-direction:column;align-items:center;justify-content:center}
+        .fullscreen-overlay.show{display:flex}
+        .fullscreen-close{position:absolute;top:15px;right:20px;font-size:32px;color:white;cursor:pointer;background:none;border:none;z-index:6001;padding:10px}
+
+        /* Calculator */
+        .calc-container{width:90%;max-width:360px;background:#1c1c1e;border-radius:24px;overflow:hidden}
+        .calc-display{padding:30px 20px;text-align:right;min-height:100px;display:flex;flex-direction:column;justify-content:flex-end}
+        .calc-expression{font-size:18px;color:var(--text-secondary);margin-bottom:8px;min-height:24px}
+        .calc-result{font-size:48px;font-weight:300;color:white;word-break:break-all}
+        .calc-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;padding:1px}
+        .calc-btn{padding:20px;font-size:24px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+        .calc-btn:active{opacity:.7}
+        .calc-btn.number{background:#333;color:white}
+        .calc-btn.operator{background:#ff9500;color:white}
+        .calc-btn.function{background:#a5a5a5;color:#1c1c1e}
+        .calc-btn.zero{grid-column:span 2}
+
+        /* Calendar */
+        .calendar-container{width:90%;max-width:400px;background:var(--bg-secondary);border-radius:24px;padding:24px;max-height:80vh;overflow-y:auto}
+        .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+        .cal-title{font-size:20px;font-weight:700}
+        .cal-nav{display:flex;gap:15px}
+        .cal-nav-btn{background:var(--bg-input);border:none;color:white;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:18px}
+        .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:8px}
+        .cal-weekday{font-size:13px;color:var(--text-secondary);padding:8px 0}
+        .cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+        .cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:15px;cursor:pointer;transition:all .2s}
+        .cal-day:hover{background:var(--bg-input)}
+        .cal-day.today{background:var(--accent);color:white;font-weight:700}
+        .cal-day.other-month{color:var(--text-secondary);opacity:.3}
+
+        /* Hijri Calendar */
+        .hijri-calendar{width:90%;max-width:400px;background:var(--bg-secondary);border-radius:24px;padding:24px;max-height:80vh;overflow-y:auto}
+        .hijri-header{text-align:center;margin-bottom:20px}
+        .hijri-month-name-ar{font-size:28px;font-weight:700;margin-bottom:8px}
+        .hijri-month-name{font-size:18px;color:var(--accent);margin-bottom:4px}
+        .hijri-days{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+        .hijri-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:15px;cursor:pointer;transition:all .2s}
+        .hijri-day:hover{background:var(--bg-input)}
+        .hijri-day.today{background:var(--accent);color:white;font-weight:700}
+
+        /* Price List */
+        .price-container{width:95%;max-width:500px;background:var(--bg-secondary);border-radius:24px;padding:24px;max-height:85vh;overflow-y:auto}
+        .price-title{font-size:22px;font-weight:700;text-align:center;margin-bottom:4px}
+        .price-subtitle{text-align:center;color:var(--text-secondary);margin-bottom:20px;font-size:14px}
+        .price-category{margin-bottom:20px}
+        .price-cat-title{font-size:16px;font-weight:600;color:var(--accent);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--bg-input)}
+        .price-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+        .price-item-name{font-size:14px;flex:1}
+        .price-item-price{font-size:15px;font-weight:700;color:var(--accent);white-space:nowrap}
+
+        /* Prayer Times */
+        .prayer-container{width:90%;max-width:400px;background:var(--bg-secondary);border-radius:24px;padding:24px;max-height:85vh;overflow-y:auto}
+        .prayer-title{font-size:22px;font-weight:700;text-align:center;margin-bottom:4px}
+        .prayer-city-label{text-align:center;color:var(--text-secondary);margin-bottom:15px;font-size:14px}
+        .prayer-item{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:12px;margin-bottom:8px;background:var(--bg-input)}
+        .prayer-item.active{background:var(--accent);color:#000}
+        .prayer-item-name{font-size:15px;font-weight:600}
+        .prayer-item-time{font-size:16px;font-weight:700}
+
+        /* Salute */
+        .salute-canvas{width:100%;height:100%}
+
+        /* Yes/No */
+        .yesno-container{width:90%;max-width:400px;text-align:center}
+        .yesno-spinner{width:200px;height:200px;margin:0 auto 30px;position:relative}
+        .yesno-circle{width:100%;height:100%;border-radius:50%;border:4px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:800;animation:yesnoSpin 3s ease-out forwards}
+        .yesno-circle.yes-result{background:rgba(0,210,106,.2);color:var(--accent)}
+        .yesno-circle.no-result{background:rgba(255,107,107,.2);color:var(--danger)}
+        @keyframes yesnoSpin{0%{transform:rotate(0deg) scale(.5);opacity:0}20%{transform:rotate(180deg) scale(1.1);opacity:1}40%{transform:rotate(360deg) scale(1)}60%{transform:rotate(540deg) scale(1.05)}80%{transform:rotate(720deg) scale(1)}100%{transform:rotate(900deg) scale(1)}}
+        .yesno-btn{padding:16px 48px;border:none;border-radius:30px;background:var(--accent);color:white;font-size:20px;font-weight:700;cursor:pointer;margin:10px;transition:all .2s}
+        .yesno-btn:active{transform:scale(.95)}
+
+        /* Admin Panel */
+        .admin-panel{position:fixed;inset:0;background:var(--bg-primary);z-index:2500;display:none;flex-direction:column}
+        .admin-panel.show{display:flex}
+        .admin-header{padding:15px 20px;background:var(--bg-secondary);border-bottom:1px solid var(--bg-input);display:flex;justify-content:space-between;align-items:center}
+        .admin-content{flex:1;overflow-y:auto;padding:20px}
+        .admin-section{margin-bottom:30px}
+        .admin-section-title{font-size:16px;font-weight:600;color:var(--accent);margin-bottom:15px;text-transform:uppercase;letter-spacing:1px}
+        .admin-input{width:100%;padding:14px;border:1px solid var(--bg-input);border-radius:12px;background:var(--bg-secondary);color:var(--text-primary);font-size:15px;margin-bottom:10px}
+        .admin-btn{padding:12px 24px;border:none;border-radius:12px;background:var(--accent);color:white;font-weight:600;cursor:pointer;margin-right:10px;margin-bottom:10px}
+        .admin-btn:active{transform:scale(.98)}
+        .admin-btn.danger{background:var(--danger)}
+        .tags-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}
+        .tag{background:var(--danger);padding:8px 16px;border-radius:20px;font-size:14px;display:flex;align-items:center;gap:8px}
+        .tag-remove{background:none;border:none;color:white;cursor:pointer;font-size:18px;padding:0 4px}
+
+        /* Contact Add Modal */
+        .contact-add-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:3500;display:none;align-items:center;justify-content:center;padding:20px}
+        .contact-add-overlay.show{display:flex}
+        .contact-add-box{background:var(--bg-secondary);border-radius:24px;padding:30px;width:100%;max-width:340px;text-align:center;border:1px solid var(--bg-input)}
+        .contact-add-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#f093fb,#f5576c);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 15px}
+        .contact-add-name{font-size:20px;font-weight:700;margin-bottom:5px}
+        .contact-add-id{font-size:14px;color:var(--accent);margin-bottom:20px}
+        .contact-add-input{width:100%;padding:14px;border:2px solid var(--bg-input);border-radius:14px;background:var(--bg-primary);color:var(--text-primary);font-size:16px;margin-bottom:15px;outline:none}
+        .contact-add-input:focus{border-color:var(--accent)}
+    </style>
+</head>
+<body class="noselect">
+
+<div class="connection-bar" id="connectionBar">⚠️ Нет подключения к интернету</div>
+<div class="toast" id="toast"><span class="toast-icon" id="toastIcon">✓</span><span id="toastText">Готово</span></div>
+
+<!-- Context Menu -->
+<div class="context-overlay" id="contextOverlay"></div>
+<div class="context-menu" id="contextMenu">
+    <div class="context-header"><div style="font-weight:600">Действия</div><div class="context-preview" id="contextPreview"></div></div>
+    <div class="context-actions">
+        <div class="context-action" id="actCopy"><span class="context-icon">📋</span><span>Копировать</span></div>
+        <div class="context-action" id="actShare"><span class="context-icon">📤</span><span>Поделиться</span></div>
+        <div class="context-action" id="actPin"><span class="context-icon">📌</span><span>Закрепить</span></div>
+        <div class="context-divider"></div>
+        <div class="context-action danger" id="actDelete"><span class="context-icon">🗑️</span><span>Удалить</span></div>
+        <div class="context-action danger" id="actDeleteAll"><span class="context-icon">💥</span><span>Удалить все сообщения</span></div>
+        <div class="context-divider"></div>
+        <div class="context-action" id="actBlock"><span class="context-icon">🚫</span><span>Заблокировать контакт</span></div>
+        <div class="context-action" id="actAdmin"><span class="context-icon">⚙️</span><span>Админ панель</span></div>
+    </div>
+</div>
+
+<!-- Password Modal -->
+<div class="modal-overlay" id="passwordModal">
+    <div class="modal-box">
+        <div class="modal-icon" id="passwordIcon" style="font-size:48px;margin-bottom:15px">🔒</div>
+        <div class="modal-title" id="passwordTitle" style="font-size:20px;font-weight:700;margin-bottom:8px">Пароль</div>
+        <div class="modal-subtitle" id="passwordSubtitle" style="color:var(--text-secondary);font-size:14px;margin-bottom:25px"></div>
+        <input type="password" class="modal-input" id="passwordInput" maxlength="10" placeholder="•••">
+        <button class="modal-btn" id="confirmPasswordBtn">Подтвердить</button>
+        <button class="modal-btn secondary" id="cancelPasswordBtn">Отмена</button>
+    </div>
+</div>
+
+<!-- Contact Add Modal -->
+<div class="contact-add-overlay" id="contactAddOverlay">
+    <div class="contact-add-box">
+        <div class="contact-add-avatar" id="contactAddAvatar">👤</div>
+        <div class="contact-add-name" id="contactAddName">Имя</div>
+        <div class="contact-add-id" id="contactAddId">ID: #0000</div>
+        <input type="text" class="contact-add-input" id="contactAddInput" placeholder="Введите имя контакта...">
+        <button class="modal-btn" id="contactAddConfirmBtn">Добавить контакт</button>
+        <button class="modal-btn secondary" id="contactAddCancelBtn">Отмена</button>
+    </div>
+</div>
+
+<!-- Admin Panel -->
+<div class="admin-panel" id="adminPanel">
+    <div class="admin-header">
+        <div class="admin-title" style="font-size:20px;font-weight:700">⚙️ Админ панель</div>
+        <button class="icon-btn" id="closeAdminBtn">✕</button>
+    </div>
+    <div class="admin-content">
+        <div class="admin-section">
+            <div class="admin-section-title">🚫 Запретные слова</div>
+            <input type="text" class="admin-input" id="bannedWordInput" placeholder="Введите слово и нажмите Enter">
+            <button class="admin-btn" id="addBannedBtn">Добавить слово</button>
+            <div class="tags-list" id="bannedWordsList"></div>
+        </div>
+        <div class="admin-section">
+            <div class="admin-section-title">🔒 Заблокированные</div>
+            <div id="blockedList"></div>
+            <button class="admin-btn danger" id="unblockAllBtn">Разблокировать всех</button>
+        </div>
+    </div>
+</div>
+
+<!-- Auth Screen -->
+<div class="auth-screen" id="authScreen">
+    <div class="auth-logo">💬</div>
+    <div class="auth-title">WhatsApp Pro</div>
+    <div class="auth-subtitle">Введите ваше имя для начала общения</div>
+    <input type="text" class="auth-input" id="usernameInput" placeholder="Ваше имя" maxlength="20">
+    <button class="auth-btn" id="enterChatBtn">Начать общение</button>
+</div>
+
+<!-- Main App -->
+<div class="app-container" id="mainApp">
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">?</div>
+                <div class="user-name" id="userNameDisplay">Пользователь</div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="toggleAddContactBtn" title="Добавить контакт">➕</button>
+                <button class="icon-btn" id="logoutBtn" title="Выйти">🚪</button>
+            </div>
+        </div>
+        <div class="search-box">
+            <input type="text" class="search-input" id="searchInput" placeholder="Поиск контактов...">
+        </div>
+        <div class="add-contact-bar" id="addContactBar">
+            <input type="text" class="add-contact-input" id="newContactName" placeholder="Имя нового контакта">
+            <button class="add-contact-btn" id="addContactBtn">Добавить контакт</button>
+        </div>
+        <div class="chat-list" id="chatList"></div>
+    </div>
+
+    <div class="chat-area" id="chatArea">
+        <div class="chat-header">
+            <div class="chat-header-left">
+                <button class="back-btn" id="backBtn">←</button>
+                <div class="chat-avatar-wrap">
+                    <div class="chat-avatar" id="headerAvatar">👤</div>
+                    <div class="online-dot" id="headerOnline"></div>
+                </div>
+                <div class="header-info">
+                    <div class="header-title" id="chatTitle">Выберите чат</div>
+                    <div class="header-status" id="chatStatus">офлайн</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="refreshBtn" title="Обновить">🔄</button>
+            </div>
+        </div>
+        <div class="messages-scroll" id="messagesScroll">
+            <div class="messages-container" id="messagesContainer">
+                <div class="empty-state"><div class="empty-icon">💬</div><div class="empty-text">Выберите контакт для начала общения</div></div>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea class="message-input" id="messageInput" placeholder="Сообщение... (# для важного)" rows="1"></textarea>
+                <button class="send-btn" id="sendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fullscreen overlays -->
+<div class="fullscreen-overlay" id="calcOverlay">
+    <button class="fullscreen-close" onclick="closeOverlay('calcOverlay')">✕</button>
+    <div class="calc-container">
+        <div class="calc-display"><div class="calc-expression" id="calcExpr"></div><div class="calc-result" id="calcResult">0</div></div>
+        <div class="calc-buttons" id="calcButtons"></div>
+    </div>
+</div>
+
+<div class="fullscreen-overlay" id="calendarOverlay">
+    <button class="fullscreen-close" onclick="closeOverlay('calendarOverlay')">✕</button>
+    <div class="calendar-container" id="calendarContainer"></div>
+</div>
+
+<div class="fullscreen-overlay" id="hijriOverlay">
+    <button class="fullscreen-close" onclick="closeOverlay('hijriOverlay')">✕</button>
+    <div class="hijri-calendar" id="hijriContainer"></div>
+</div>
+
+<div class="fullscreen-overlay" id="priceOverlay">
+    <button class="fullscreen-close" onclick="closeOverlay('priceOverlay')">✕</button>
+    <div class="price-container" id="priceContainer"></div>
+</div>
+
+<div class="fullscreen-overlay" id="prayerOverlay">
+    <button class="fullscreen-close" onclick="closeOverlay('prayerOverlay')">✕</button>
+    <div class="prayer-container" id="prayerContainer"></div>
+</div>
+
+<div class="fullscreen-overlay" id="saluteOverlay">
+    <button class="fullscreen-close" onclick="closeOverlay('saluteOverlay')">✕</button>
+    <canvas class="salute-canvas" id="saluteCanvas"></canvas>
+</div>
+
+<div class="fullscreen-overlay" id="yesnoOverlay">
+    <button class="fullscreen-close" onclick="closeOverlay('yesnoOverlay')">✕</button>
+    <div class="yesno-container" id="yesnoContainer"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded, onValue, get, set, remove, update, off, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBppttXdUhZ-BVV3XRyhaPMyWW_Lch2Jes",
+    authDomain: "dddd-8e287.firebaseapp.com",
+    databaseURL: "https://dddd-8e287-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "dddd-8e287",
+    storageBucket: "dddd-8e287.firebasestorage.app",
+    messagingSenderId: "678020145717",
+    appId: "1:678020145717:web:19bf8867df347a22cc477c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// State
+let currentUser = '';
+let currentChatId = null;
+let currentChatName = '';
+let selectedMsg = null;
+let isAdmin = false;
+let contacts = [];
+let msgsRef = null;
+let longPressTimer = null;
+let touchStartY = 0;
+let isScrolling = false;
+let contactToAdd = null;
+
+// Helpers
+function showToast(icon, text) {
+    document.getElementById('toastIcon').textContent = icon;
+    document.getElementById('toastText').textContent = text;
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text || '';
+    return d.innerHTML;
+}
+
+function scrollToBottom() {
+    const s = document.getElementById('messagesScroll');
+    requestAnimationFrame(() => { s.scrollTop = s.scrollHeight; });
+}
+
+function generateContactId() {
+    return Math.floor(1000 + Math.random() * 9000);
+}
+
+function loadLocalData() {
+    try {
+        const saved = localStorage.getItem('whatsapp_data');
+        if (saved) { const d = JSON.parse(saved); contacts = d.contacts || []; return d; }
+    } catch(e) {}
+    return {};
+}
+
+function saveLocalData() {
+    localStorage.setItem('whatsapp_data', JSON.stringify({ contacts, currentUser }));
+}
+
+// Close overlays
+window.closeOverlay = function(id) {
+    document.getElementById(id).classList.remove('show');
+    if (id === 'saluteOverlay') {
+        window._saluteAnim = false;
+    }
+};
+
+// Auth
+function enterChat() {
+    const username = document.getElementById('usernameInput').value.trim();
+    if (!username) { showToast('⚠️', 'Введите имя!'); document.getElementById('usernameInput').focus(); return; }
+    currentUser = username;
+    document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
+    document.getElementById('userNameDisplay').textContent = username;
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.add('active');
+    localStorage.setItem('whatsapp_user', username);
+    saveLocalData();
+
+    const statusRef = ref(db, `status/${username}`);
+    set(statusRef, { online: true, lastSeen: Date.now(), typing: false });
+    onDisconnect(statusRef).set({ online: false, lastSeen: Date.now(), typing: false });
+    loadContacts();
+}
+
+document.getElementById('enterChatBtn').addEventListener('click', enterChat);
+document.getElementById('usernameInput').addEventListener('keypress', e => { if (e.key === 'Enter') enterChat(); });
+
+const savedUser = localStorage.getItem('whatsapp_user');
+if (savedUser) document.getElementById('usernameInput').value = savedUser;
+
+// Load Contacts
+function loadContacts() {
+    const list = document.getElementById('chatList');
+    list.innerHTML = '';
+    if (contacts.length === 0) {
+        contacts = [{ id: 'general', name: 'Общий чат', avatar: '👥', type: 'group', cid: 0 }];
+        saveLocalData();
+    }
+    contacts.forEach(contact => {
+        const div = document.createElement('div');
+        div.className = 'chat-item' + (currentChatId === contact.id ? ' active' : '');
+        div.dataset.contactId = contact.id;
+        div.dataset.contactName = contact.name;
+        div.dataset.contactAvatar = contact.avatar;
+        div.dataset.contactType = contact.type || 'private';
+        div.addEventListener('click', () => selectChat(contact));
+
+        const idBadge = contact.cid ? `<span class="chat-id-badge">ID: ${contact.cid}</span>` : '';
+        div.innerHTML = `
+            <div class="chat-avatar-wrap"><div class="chat-avatar">${contact.avatar}</div><div class="online-dot" id="online-${contact.id}"></div></div>
+            <div class="chat-details">
+                <div class="chat-name-row"><div class="chat-name">${escapeHtml(contact.name)}</div>${idBadge}<div class="chat-time" id="time-${contact.id}"></div></div>
+                <div class="chat-preview" id="preview-${contact.id}">Нет сообщений</div>
+            </div>`;
+        list.appendChild(div);
+
+        if (contact.type !== 'group') {
+            onValue(ref(db, `status/${contact.name}`), snap => {
+                const data = snap.val();
+                const dot = document.getElementById(`online-${contact.id}`);
+                if (dot && data) {
+                    dot.classList.toggle('visible', data.online);
+                    dot.classList.toggle('typing-indicator', data.typing);
+                    if (currentChatId === contact.id) updateHeaderStatus(data);
+                }
+            });
+        }
+    });
+}
+
+function updateHeaderStatus(data) {
+    const status = document.getElementById('chatStatus');
+    const dot = document.getElementById('headerOnline');
+    if (data.typing) { status.textContent = 'печатает...'; status.className = 'header-status typing-indicator'; dot.classList.add('typing-indicator'); }
+    else if (data.online) { status.textContent = 'в сети'; status.className = 'header-status online'; dot.classList.remove('typing-indicator'); }
+    else { const t = new Date(data.lastSeen).toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'}); status.textContent = `был(а) в ${t}`; status.className = 'header-status'; dot.classList.remove('typing-indicator'); }
+}
+
+function selectChat(contact) {
+    currentChatId = contact.id;
+    currentChatName = contact.name;
+    document.querySelectorAll('.chat-item').forEach(i => i.classList.toggle('active', i.dataset.contactId === contact.id));
+    document.getElementById('chatTitle').textContent = contact.name;
+    document.getElementById('headerAvatar').textContent = contact.avatar;
+    if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('hidden');
+    document.getElementById('messageInput').focus();
+    loadMessages();
+}
+
+// Toggle add contact
+document.getElementById('toggleAddContactBtn').addEventListener('click', () => {
+    document.getElementById('addContactBar').classList.toggle('show');
+    document.getElementById('newContactName').focus();
+});
+
+// Add contact
+document.getElementById('addContactBtn').addEventListener('click', () => {
+    const name = document.getElementById('newContactName').value.trim();
+    if (!name) { showToast('⚠️', 'Введите имя!'); return; }
+    const id = 'chat_' + Date.now();
+    const cid = generateContactId();
+    contacts.push({ id, name, avatar: '👤', type: 'private', cid });
+    saveLocalData();
+    loadContacts();
+    document.getElementById('newContactName').value = '';
+    document.getElementById('addContactBar').classList.remove('show');
+    showToast('✓', 'Контакт добавлен! ID: #' + cid);
+});
+
+// Search
+document.getElementById('searchInput').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('.chat-item').forEach(i => {
+        i.style.display = i.querySelector('.chat-name').textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+    });
+});
+
+// Messages
+function loadMessages() {
+    const container = document.getElementById('messagesContainer');
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)">Загрузка...</div>';
+    if (msgsRef) off(msgsRef);
+
+    const chatRef = ref(db, `chats/${currentChatId}/messages`);
+    get(chatRef).then(snap => {
+        container.innerHTML = '';
+        if (!snap.exists()) { container.innerHTML = '<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-text">Нет сообщений.<br>Напишите первое!</div></div>'; return; }
+        const msgs = [];
+        snap.forEach(c => msgs.push({ key: c.key, ...c.val() }));
+        msgs.sort((a, b) => a.timestamp - b.timestamp);
+        msgs.forEach(m => renderMessage(m, false));
+    }).catch(() => { container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">Ошибка загрузки</div></div>'; });
+
+    msgsRef = onChildAdded(chatRef, snap => {
+        const msg = { key: snap.key, ...snap.val() };
+        if (!document.getElementById(`msg-${msg.key}`)) renderMessage(msg, true);
+    });
+}
+
+function isSpecialCommand(text) {
+    return text && text.startsWith('(') && text.includes(')');
+}
+
+function getSpecialCardHTML(text, key) {
+    const lower = text.toLowerCase();
+    if (lower === '(калькулятор)') return `<div class="special-card" data-action="calculator" data-msgkey="${key}"><div class="special-card-icon">🧮</div><div class="special-card-title">Калькулятор</div><div class="special-card-desc">Нажмите чтобы открыть калькулятор</div><div class="special-card-tap">👆 Нажмите для открытия</div></div>`;
+    if (lower === '(календарь)') return `<div class="special-card" data-action="calendar" data-msgkey="${key}"><div class="special-card-icon">📅</div><div class="special-card-title">Календарь</div><div class="special-card-desc">Открыть календарь</div><div class="special-card-tap">👆 Нажмите для открытия</div></div>`;
+    if (lower === '(прайс лист)') return `<div class="special-card" data-action="pricelist" data-msgkey="${key}"><div class="special-card-icon">💰</div><div class="special-card-title">Прайс Лист</div><div class="special-card-desc">Электрика по Махачкале — полный список</div><div class="special-card-tap">👆 Нажмите для просмотра</div></div>`;
+    if (lower === '(календарь по хиджры)') return `<div class="special-card" data-action="hijri" data-msgkey="${key}"><div class="special-card-icon">🌙</div><div class="special-card-title">Календарь по Хиджры</div><div class="special-card-desc">Исламский календарь</div><div class="special-card-tap">👆 Нажмите для открытия</div></div>`;
+    if (lower.startsWith('(рузнама') || lower.startsWith('(рузнама') || lower === '(намаз)') return `<div class="special-card" data-action="prayer" data-msgkey="${key}"><div class="special-card-icon">🕌</div><div class="special-card-title">Рузнама</div><div class="special-card-desc">Время намаза</div><div class="special-card-tap">👆 Нажмите для открытия</div></div>`;
+    if (lower === '(салют)') return `<div class="special-card" data-action="salute" data-msgkey="${key}"><div class="special-card-icon">🎆</div><div class="special-card-title">Салют</div><div class="special-card-desc">Красивый салют на 5 секунд</div><div class="special-card-tap">👆 Нажмите для запуска</div></div>`;
+    if (lower === '(да или нет)' || lower === '(да или нет)') return `<div class="special-card" data-action="yesno" data-msgkey="${key}"><div class="special-card-icon">🎲</div><div class="special-card-title">Да или Нет</div><div class="special-card-desc">Случайный выбор — Да или Нет</div><div class="special-card-tap">👆 Нажмите для выбора</div></div>`;
+    return null;
+}
+
+function renderMessage(msg, animate) {
+    const container = document.getElementById('messagesContainer');
+    const isSent = msg.sender === currentUser;
+    const emptyState = container.querySelector('.empty-state');
+    if (emptyState) emptyState.remove();
+    const loadingEl = container.querySelector('[style*="text-align:center"]');
+    if (loadingEl) loadingEl.remove();
+
+    const div = document.createElement('div');
+    div.className = `message ${isSent ? 'sent' : 'received'}`;
+    if (msg.pinned) div.classList.add('pinned-msg');
+    if (msg.text && msg.text.startsWith('#')) div.classList.add('hashtag-msg');
+    div.id = `msg-${msg.key}`;
+
+    const time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+
+    // Check for special command card
+    const specialHTML = getSpecialCardHTML(msg.text, msg.key);
+    if (specialHTML && !msg.text.startsWith('#')) {
+        let html = '';
+        if (!isSent) html += `<div class="message-sender">${escapeHtml(msg.sender)}</div>`;
+        html += specialHTML;
+        html += `<div class="message-time">${time} ${msg.pinned ? '📌' : ''}</div>`;
+        div.innerHTML = html;
+    } else {
+        let text = msg.text || '';
+        if (text.startsWith('#')) text = text.substring(1).trim();
+        let html = '';
+        if (!isSent && !msg.text?.startsWith('#')) html += `<div class="message-sender">${escapeHtml(msg.sender)}</div>`;
+        html += `<div class="message-text">${escapeHtml(text)}</div>`;
+        html += `<div class="message-time">${time} ${msg.pinned ? '📌' : ''}</div>`;
+        div.innerHTML = html;
+    }
+
+    // Touch events
+    div.addEventListener('touchstart', handleTouchStart, {passive: false});
+    div.addEventListener('touchend', handleTouchEnd);
+    div.addEventListener('touchmove', handleTouchMove, {passive: true});
+    div.addEventListener('contextmenu', e => { e.preventDefault(); showContextMenu(e, msg); });
+
+    // Click on special cards
+    div.querySelectorAll('.special-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const action = card.dataset.action;
+            openSpecialFeature(action);
+        });
+    });
+
+    container.appendChild(div);
+    scrollToBottom();
+
+    // Update preview
+    const preview = document.getElementById(`preview-${currentChatId}`);
+    if (preview) {
+        preview.textContent = (msg.sender === currentUser ? 'Вы: ' : '') + (msg.text || '').substring(0, 30);
+    }
+    const timeEl = document.getElementById(`time-${currentChatId}`);
+    if (timeEl) timeEl.textContent = time;
+}
+
+function handleTouchStart(e) {
+    if (e.touches.length > 1) return;
+    touchStartY = e.touches[0].clientY;
+    isScrolling = false;
+    longPressTimer = setTimeout(() => {
+        longPressTimer = null;
+        if (navigator.vibrate) navigator.vibrate(50);
+        const msgEl = e.currentTarget;
+        const msgKey = msgEl.id.replace('msg-', '');
+        showContextMenu(e, { key: msgKey, text: msgEl.querySelector('.message-text')?.textContent || msgEl.textContent });
+    }, 600);
+}
+function handleTouchEnd() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } }
+function handleTouchMove(e) { if (longPressTimer && Math.abs(e.touches[0].clientY - touchStartY) > 10) { clearTimeout(longPressTimer); longPressTimer = null; isScrolling = true; } }
+
+// Send message
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+    if (!text || !currentChatId) return;
+    input.value = '';
+    input.style.height = 'auto';
+
+    const bannedWords = JSON.parse(localStorage.getItem('bannedWords') || '[]');
+    if (bannedWords.some(w => text.toLowerCase().includes(w.toLowerCase()))) {
+        showToast('🚫', 'Сообщение содержит запрещённое слово');
+        return;
+    }
+
+    const msgData = { text, sender: currentUser, timestamp: Date.now(), secret: false, pinned: false };
+    try {
+        await push(ref(db, `chats/${currentChatId}/messages`), msgData);
+    } catch (e) {
+        showToast('⚠️', 'Ошибка отправки');
+    }
+}
+
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+document.getElementById('messageInput').addEventListener('keypress', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+document.getElementById('messageInput').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    if (currentChatId) {
+        set(ref(db, `status/${currentUser}/typing`), true);
+        clearTimeout(window._typingTimeout);
+        window._typingTimeout = setTimeout(() => set(ref(db, `status/${currentUser}/typing`), false), 2000);
+    }
+});
+
+// Context Menu
+function showContextMenu(e, msg) {
+    selectedMsg = msg;
+    document.getElementById('contextPreview').textContent = (msg.text || '').substring(0, 50);
+    document.getElementById('contextOverlay').classList.add('show');
+    document.getElementById('contextMenu').classList.add('show');
+}
+
+function closeContextMenu() {
+    document.getElementById('contextOverlay').classList.remove('show');
+    document.getElementById('contextMenu').classList.remove('show');
+    selectedMsg = null;
+}
+
+document.getElementById('contextOverlay').addEventListener('click', closeContextMenu);
+
+document.getElementById('actCopy').addEventListener('click', () => {
+    if (selectedMsg) { navigator.clipboard.writeText(selectedMsg.text || '').then(() => showToast('📋', 'Скопировано!')).catch(() => showToast('⚠️', 'Не удалось')); }
+    closeContextMenu();
+});
+
+document.getElementById('actShare').addEventListener('click', () => {
+    if (selectedMsg) {
+        if (navigator.share) navigator.share({ text: selectedMsg.text || '' }).catch(() => {});
+        else { navigator.clipboard.writeText(selectedMsg.text || '').then(() => showToast('📤', 'Скопировано!')).catch(() => {}); }
+    }
+    closeContextMenu();
+});
+
+document.getElementById('actPin').addEventListener('click', async () => {
+    if (selectedMsg && currentChatId) {
+        try {
+            await update(ref(db, `chats/${currentChatId}/messages/${selectedMsg.key}`), { pinned: !selectedMsg.pinned });
+            showToast('📌', selectedMsg.pinned ? 'Откреплено' : 'Закреплено!');
+            loadMessages();
+        } catch { showToast('⚠️', 'Ошибка'); }
+    }
+    closeContextMenu();
+});
+
+document.getElementById('actDelete').addEventListener('click', async () => {
+    if (selectedMsg && currentChatId) {
+        if (confirm('Удалить сообщение?')) {
+            try {
+                await remove(ref(db, `chats/${currentChatId}/messages/${selectedMsg.key}`));
+                showToast('🗑️', 'Удалено!');
+                loadMessages();
+            } catch (e) {
+                showToast('⚠️', 'Ошибка удаления');
+            }
+        }
+    }
+    closeContextMenu();
+});
+
+document.getElementById('actDeleteAll').addEventListener('click', async () => {
+    if (currentChatId) {
+        if (confirm('Удалить ВСЕ сообщения?')) {
+            try {
+                await remove(ref(db, `chats/${currentChatId}/messages`));
+                showToast('💥', 'Все сообщения удалены!');
+                loadMessages();
+            } catch (e) {
+                showToast('⚠️', 'Ошибка');
+            }
+        }
+    }
+    closeContextMenu();
+});
+
+document.getElementById('actBlock').addEventListener('click', () => {
+    if (selectedMsg) {
+        const blocked = JSON.parse(localStorage.getItem('blockedUsers') || '[]');
+        if (!blocked.includes(selectedMsg.sender)) { blocked.push(selectedMsg.sender); localStorage.setItem('blockedUsers', JSON.stringify(blocked)); }
+        showToast('🚫', `${selectedMsg.sender} заблокирован`);
+    }
+    closeContextMenu();
+});
+
+document.getElementById('actAdmin').addEventListener('click', () => {
+    closeContextMenu();
+    document.getElementById('passwordIcon').textContent = '⚙️';
+    document.getElementById('passwordTitle').textContent = 'Админ панель';
+    document.getElementById('passwordSubtitle').textContent = 'Пароль: 555';
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordModal').classList.add('show');
+    setTimeout(() => document.getElementById('passwordInput').focus(), 300);
+});
+
+// Password
+function checkPassword() {
+    const val = document.getElementById('passwordInput').value;
+    if (val === '555') {
+        isAdmin = true;
+        document.getElementById('passwordModal').classList.remove('show');
+        document.getElementById('adminPanel').classList.add('show');
+        updateAdminPanel();
+    } else {
+        showToast('⚠️', 'Неверный пароль!');
+        document.getElementById('passwordInput').value = '';
+    }
+}
+document.getElementById('confirmPasswordBtn').addEventListener('click', checkPassword);
+document.getElementById('passwordInput').addEventListener('keypress', e => { if (e.key === 'Enter') checkPassword(); });
+document.getElementById('cancelPasswordBtn').addEventListener('click', () => { document.getElementById('passwordModal').classList.remove('show'); });
+
+// Admin
+document.getElementById('closeAdminBtn').addEventListener('click', () => { document.getElementById('adminPanel').classList.remove('show'); });
+
+function updateAdminPanel() {
+    const list = document.getElementById('bannedWordsList');
+    const words = JSON.parse(localStorage.getItem('bannedWords') || '[]');
+    list.innerHTML = words.map(w => `<div class="tag">${escapeHtml(w)}<button class="tag-remove" data-word="${escapeHtml(w)}">×</button></div>`).join('');
+    list.querySelectorAll('.tag-remove').forEach(b => b.addEventListener('click', () => {
+        let ws = JSON.parse(localStorage.getItem('bannedWords') || '[]');
+        ws = ws.filter(x => x !== b.dataset.word);
+        localStorage.setItem('bannedWords', JSON.stringify(ws));
+        updateAdminPanel();
+        showToast('✓', 'Удалено');
+    }));
+    const blocked = JSON.parse(localStorage.getItem('blockedUsers') || '[]');
+    document.getElementById('blockedList').innerHTML = blocked.length ? blocked.map(u => `<div class="tag">${escapeHtml(u)}</div>`).join('') : '<div style="color:var(--text-secondary);font-size:14px">Нет</div>';
+}
+
+document.getElementById('addBannedBtn').addEventListener('click', addBanned);
+document.getElementById('bannedWordInput').addEventListener('keypress', e => { if (e.key === 'Enter') addBanned(); });
+
+function addBanned() {
+    const w = document.getElementById('bannedWordInput').value.trim();
+    if (!w) return;
+    const words = JSON.parse(localStorage.getItem('bannedWords') || '[]');
+    if (words.includes(w)) { showToast('⚠️', 'Уже есть'); return; }
+    words.push(w);
+    localStorage.setItem('bannedWords', JSON.stringify(words));
+    document.getElementById('bannedWordInput').value = '';
+    updateAdminPanel();
+    showToast('✓', 'Добавлено!');
+}
+
+document.getElementById('unblockAllBtn').addEventListener('click', () => {
+    localStorage.removeItem('blockedUsers');
+    showToast('✓', 'Все разблокированы!');
+    updateAdminPanel();
+});
+
+// Contact add modal for clicking on person
+document.getElementById('contactAddConfirmBtn').addEventListener('click', () => {
+    const name = document.getElementById('contactAddInput').value.trim();
+    if (!name || !contactToAdd) return;
+    const id = 'chat_' + Date.now();
+    const cid = generateContactId();
+    contacts.push({ id, name, avatar: contactToAdd.avatar || '👤', type: 'private', cid });
+    saveLocalData();
+    loadContacts();
+    document.getElementById('contactAddOverlay').classList.remove('show');
+    showToast('✓', `Контакт "${name}" добавлен! ID: #${cid}`);
+    contactToAdd = null;
+});
+
+document.getElementById('contactAddCancelBtn').addEventListener('click', () => {
+    document.getElementById('contactAddOverlay').classList.remove('show');
+    contactToAdd = null;
+});
+
+function openContactAddModal(contact) {
+    contactToAdd = contact;
+    document.getElementById('contactAddAvatar').textContent = contact.avatar || '👤';
+    document.getElementById('contactAddName').textContent = contact.name;
+    document.getElementById('contactAddId').textContent = `ID: #${contact.cid || generateContactId()}`;
+    document.getElementById('contactAddInput').value = contact.name;
+    document.getElementById('contactAddOverlay').classList.add('show');
+}
+
+// Make header click open contact modal
+document.getElementById('chatTitle').addEventListener('click', () => {
+    if (currentChatId) {
+        const c = contacts.find(x => x.id === currentChatId);
+        if (c) openContactAddModal(c);
+    }
+});
+
+// Navigation
+document.getElementById('backBtn').addEventListener('click', () => { document.getElementById('sidebar').classList.remove('hidden'); });
+document.getElementById('refreshBtn').addEventListener('click', () => { loadMessages(); showToast('🔄', 'Обновлено!'); });
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    if (!confirm('Выйти?')) return;
+    set(ref(db, `status/${currentUser}`), { online: false, lastSeen: Date.now() }).catch(() => {});
+    localStorage.removeItem('whatsapp_user');
+    localStorage.removeItem('whatsapp_data');
+    location.reload();
+});
+
+// Connection
+window.addEventListener('online', () => { document.getElementById('connectionBar').classList.remove('show'); showToast('📡', 'Подключено'); });
+window.addEventListener('offline', () => { document.getElementById('connectionBar').classList.add('show'); });
+
+// ========== SPECIAL FEATURES ==========
+
+function openSpecialFeature(action) {
+    switch(action) {
+        case 'calculator': openCalculator(); break;
+        case 'calendar': openCalendar(); break;
+        case 'pricelist': openPriceList(); break;
+        case 'hijri': openHijriCalendar(); break;
+        case 'prayer': openPrayerTimes(); break;
+        case 'salute': openSalute(); break;
+        case 'yesno': openYesNo(); break;
+    }
+}
+
+// Calculator
+function openCalculator() {
+    document.getElementById('calcOverlay').classList.add('show');
+    let expr = '';
+    let display = '0';
+    let newNumber = true;
+
+    function updateDisplay() {
+        document.getElementById('calcExpr').textContent = expr;
+        document.getElementById('calcResult').textContent = display;
+    }
+
+    function addButtons() {
+        const btns = document.getElementById('calcButtons');
+        btns.innerHTML = '';
+        const layout = [
+            ['C', 'function'], ['±', 'function'], ['%', 'function'], ['÷', 'operator'],
+            ['7', 'number'], ['8', 'number'], ['9', 'number'], ['×', 'operator'],
+            ['4', 'number'], ['5', 'number'], ['6', 'number'], ['−', 'operator'],
+            ['1', 'number'], ['2', 'number'], ['3', 'number'], ['+', 'operator'],
+            ['0', 'number zero'], ['.', 'number'], ['=', 'operator']
+        ];
+        layout.forEach(([label, cls]) => {
+            const btn = document.createElement('button');
+            btn.className = `calc-btn ${cls}`;
+            btn.textContent = label;
+            btn.addEventListener('click', () => handleCalc(label));
+            btns.appendChild(btn);
+        });
+    }
+
+    function handleCalc(label) {
+        if (label === 'C') { expr = ''; display = '0'; newNumber = true; }
+        else if (label === '±') { display = String(-parseFloat(display)); }
+        else if (label === '%') { display = String(parseFloat(display) / 100); }
+        else if (label === '=') {
+            try {
+                const evalExpr = (expr + display).replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+                display = String(eval(evalExpr));
+                if (display === 'Infinity' || display === 'NaN') display = 'Ошибка';
+                expr = '';
+                newNumber = true;
+            } catch { display = 'Ошибка'; expr = ''; newNumber = true; }
+        }
+        else if (['+', '−', '×', '÷'].includes(label)) {
+            expr += display + ' ' + label + ' ';
+            newNumber = true;
+        }
+        else {
+            if (newNumber) { display = label; newNumber = false; }
+            else { display += label; }
+        }
+        updateDisplay();
+    }
+
+    addButtons();
+    updateDisplay();
+}
+
+// Calendar
+function openCalendar() {
+    document.getElementById('calendarOverlay').classList.add('show');
+    let viewDate = new Date();
+
+    function renderCalendar() {
+        const container = document.getElementById('calendarContainer');
+        const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+        const days = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth();
+        const today = new Date();
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const startDay = firstDay === 0 ? 6 : firstDay - 1;
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPrev = new Date(year, month, 0).getDate();
+
+        let html = `<div class="cal-header"><div class="cal-title">${months[month]} ${year}</div><div class="cal-nav"><button class="cal-nav-btn" id="calPrev">‹</button><button class="cal-nav-btn" id="calNext">›</button></div></div>`;
+        html += `<div class="cal-weekdays">${days.map(d => `<div class="cal-weekday">${d}</div>`).join('')}</div>`;
+        html += '<div class="cal-days">';
+
+        for (let i = startDay - 1; i >= 0; i--) html += `<div class="cal-day other-month">${daysInPrev - i}</div>`;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+            html += `<div class="cal-day${isToday ? ' today' : ''}">${d}</div>`;
+        }
+        const remaining = 42 - startDay - daysInMonth;
+        for (let d = 1; d <= remaining && d <= 14; d++) html += `<div class="cal-day other-month">${d}</div>`;
+        html += '</div>';
+
+        container.innerHTML = html;
+        document.getElementById('calPrev').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth() - 1); renderCalendar(); });
+        document.getElementById('calNext').addEventListener('click', () => { viewDate.setMonth(viewDate.getMonth() + 1); renderCalendar(); });
+    }
+    renderCalendar();
+}
+
+// Hijri Calendar (approximate)
+function openHijriCalendar() {
+    document.getElementById('hijriOverlay').classList.add('show');
+    const hijriMonths = ['Мухаррам','Сафар','Раби аль-Авваль','Раби ас-Сани','Джумада аль-Уля','Джумада ас-Сания','Раджаб','Шаабан','Рамадан','Шавваль','Зуль-Каада','Зуль-Хиджа'];
+    const hijriMonthsAr = ['مُحَرَّم','صَفَر','رَبِيع ٱلْأَوَّل','رَبِيع ٱلثَّانِي','جُمَادَىٰ ٱلْأُولَىٰ','جُمَادَىٰ ٱلثَّانِيَة','رَجَب','شَعْبَان','رَمَضَان','شَوَّال','ذُو ٱلْقَعْدَة','ذُو ٱلْحِجَّة'];
+    const today = new Date();
+    // Approximate Hijri date
+    const epoch = new Date(622, 6, 16);
+    const diff = today - epoch;
+    const hijriDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hijriYear = Math.floor(hijriDays / 354.36667) + 1;
+    const dayInYear = hijriDays % 354;
+    const daysInMonth = [];
+    for (let m = 0; m < 12; m++) daysInMonth.push(m % 2 === 0 ? 30 : 29);
+    // Adjust for leap year
+    const leapYears = [2,5,7,10,13,16,18,21,24,26,29];
+    if (leapYears.includes(hijriYear % 30)) daysInMonth[11] = 30;
+
+    let currentMonth = 0;
+    let remaining = dayInYear;
+    for (let m = 0; m < 12; m++) {
+        if (remaining < daysInMonth[m]) { currentMonth = m; break; }
+        remaining -= daysInMonth[m];
+    }
+    const currentDay = remaining + 1;
+
+    const container = document.getElementById('hijriContainer');
+    let html = `<div class="hijri-header"><div class="hijri-month-name-ar">${hijriMonthsAr[currentMonth]}</div><div class="hijri-month-name">${hijriMonths[currentMonth]} ${hijriYear} г.Х.</div><div style="font-size:14px;color:var(--text-secondary)">Приблизительно</div></div>`;
+    html += '<div class="hijri-days">';
+    for (let d = 1; d <= daysInMonth[currentMonth]; d++) {
+        const isToday = d === currentDay;
+        html += `<div class="hijri-day${isToday ? ' today' : ''}">${d}</div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Price List - Makhachkala Electrician
+function openPriceList() {
+    document.getElementById('priceOverlay').classList.add('show');
+    const data = [
+        { cat: '🔌 Электромонтажные работы', items: [
+            ['Прокладка кабеля открыто (1м)', '50 ₽'],
+            ['Прокладка кабеля в штробе (1м)', '150 ₽'],
+            ['Прокладка в гофре (1м)', '100 ₽'],
+            ['Штробление стен (бетон, 1м)', '350 ₽'],
+            ['Штробление стен (кирпич, 1м)', '200 ₽'],
+            ['Установка подрозетника', '200 ₽'],
+            ['Монтаж распределительной коробки', '300 ₽'],
+        ]},
+        { cat: '🔌 Установка розеток и выключателей', items: [
+            ['Розетка одинарная', '250 ₽'],
+            ['Розетка двойная', '350 ₽'],
+            ['Выключатель 1-клавишный', '200 ₽'],
+            ['Выключатель 2-клавишный', '250 ₽'],
+            ['Выключатель 3-клавишный', '300 ₽'],
+            ['Розетка с заземлением', '300 ₽'],
+            ['Блок розеток (2-4 шт)', '500 ₽'],
+        ]},
+        { cat: '💡 Освещение', items: [
+            ['Монтаж люстры', '500 ₽'],
+            ['Монтаж точечного светильника', '200 ₽'],
+            ['Монтаж бра/настенного', '300 ₽'],
+            ['Монтаж светодиодной ленты (1м)', '150 ₽'],
+            ['Установка диммера', '350 ₽'],
+            ['Монтаж трекового светильника', '400 ₽'],
+        ]},
+        { cat: '⚡ Щитовое оборудование', items: [
+            ['Сборка электрощита', '3 000 ₽'],
+            ['Установка автомата', '200 ₽'],
+            ['Установка УЗО', '300 ₽'],
+            ['Установка дифавтомата', '350 ₽'],
+            ['Монтаж счётчика электроэнергии', '1 500 ₽'],
+            ['Замена щита', '2 000 ₽'],
+        ]},
+        { cat: '🔧 Диагностика и ремонт', items: [
+            ['Выезд электрика (Махачкала)', '500 ₽'],
+            ['Диагностика неисправности', '300 ₽'],
+            ['Замена проводки (комната)', '5 000 ₽'],
+            ['Устранение короткого замыкания', '1 000 ₽'],
+            ['Подключение электроплиты', '800 ₽'],
+            ['Подключение бойлера', '1 000 ₽'],
+            ['Подключение кондиционера', '1 500 ₽'],
+        ]},
+        { cat: '🏠 Квартира под ключ', items: [
+            ['1-комнатная квартира', 'от 15 000 ₽'],
+            ['2-комнатная квартира', 'от 25 000 ₽'],
+            ['3-комнатная квартира', 'от 35 000 ₽'],
+            ['Частный дом', 'от 40 000 ₽'],
+        ]}
+    ];
+
+    const container = document.getElementById('priceContainer');
+    let html = `<div class="price-title">💰 Прайс Лист</div><div class="price-subtitle">Электрика по Махачкале — полный список</div>`;
+    data.forEach(cat => {
+        html += `<div class="price-category"><div class="price-cat-title">${cat.cat}</div>`;
+        cat.items.forEach(([name, price]) => {
+            html += `<div class="price-item"><div class="price-item-name">${name}</div><div class="price-item-price">${price}</div></div>`;
+        });
+        html += '</div>';
+    });
+    container.innerHTML = html;
+}
+
+// Prayer Times (Ruзнама)
+function openPrayerTimes() {
+    document.getElementById('prayerOverlay').classList.add('show');
+    const container = document.getElementById('prayerContainer');
+
+    container.innerHTML = `
+        <div class="prayer-title">🕌 Рузнама</div>
+        <div class="prayer-city-label">Введите город</div>
+        <input type="text" class="prayer-city-input" id="prayerCityInput" placeholder="Махачкала" value="Махачкала">
+        <div id="prayerResults">
+            <div class="prayer-item" id="prayerFajr"><span class="prayer-item-name">🌅 Фаджр</span><span class="prayer-item-time">--:--</span></div>
+            <div class="prayer-item" id="prayerSunrise"><span class="prayer-item-name">☀️ Восход</span><span class="prayer-item-time">--:--</span></div>
+            <div class="prayer-item" id="prayerDhuhr"><span class="prayer-item-name">🌞 Зухр</span><span class="prayer-item-time">--:--</span></div>
+            <div class="prayer-item" id="prayerAsr"><span class="prayer-item-name">🌤️ Аср</span><span class="prayer-item-time">--:--</span></div>
+            <div class="prayer-item" id="prayerMaghrib"><span class="prayer-item-name">🌇 Магриб</span><span class="prayer-item-time">--:--</span></div>
+            <div class="prayer-item" id="prayerIsha"><span class="prayer-item-name">🌙 Иша</span><span class="prayer-item-time">--:--</span></div>
+        </div>
+        <div style="text-align:center;margin-top:15px;color:var(--text-secondary);font-size:12px">Время примерное для Махачкалы</div>
+    `;
+
+    const makhachkalaPrayers = {
+        'фаджр': '04:30', 'восход': '05:50', 'зухр': '12:45', 'аср': '16:30', 'магриб': '19:40', 'иша': '21:00'
+    };
+
+    function loadPrayerTimes() {
+        // Using approximate times for Makhachkala (adjustable)
+        const now = new Date();
+        const month = now.getMonth();
+        // Rough prayer times by month for Makhachkala
+        const times = [
+            { fajr:'05:30', sunrise:'07:00', dhuhr:'12:30', asr:'15:00', maghrib:'17:30', isha:'19:00' }, // Jan
+            { fajr:'05:15', sunrise:'06:45', dhuhr:'12:30', asr:'15:30', maghrib:'18:00', isha:'19:30' }, // Feb
+            { fajr:'04:50', sunrise:'06:15', dhuhr:'12:30', asr:'16:00', maghrib:'18:30', isha:'20:00' }, // Mar
+            { fajr:'04:20', sunrise:'05:45', dhuhr:'12:30', asr:'16:30', maghrib:'19:00', isha:'20:30' }, // Apr
+            { fajr:'03:50', sunrise:'05:15', dhuhr:'12:30', asr:'17:00', maghrib:'19:30', isha:'21:00' }, // May
+            { fajr:'03:30', sunrise:'04:50', dhuhr:'12:30', asr:'17:30', maghrib:'20:00', isha:'21:30' }, // Jun
+            { fajr:'03:35', sunrise:'05:00', dhuhr:'12:45', asr:'17:30', maghrib:'20:00', isha:'21:30' }, // Jul
+            { fajr:'04:00', sunrise:'05:30', dhuhr:'12:45', asr:'17:00', maghrib:'19:30', isha:'21:00' }, // Aug
+            { fajr:'04:30', sunrise:'06:00', dhuhr:'12:45', asr:'16:30', maghrib:'18:45', isha:'20:15' }, // Sep
+            { fajr:'05:00', sunrise:'06:30', dhuhr:'12:30', asr:'15:45', maghrib:'17:45', isha:'19:15' }, // Oct
+            { fajr:'05:30', sunrise:'07:00', dhuhr:'12:15', asr:'15:00', maghrib:'17:00', isha:'18:30' }, // Nov
+            { fajr:'05:45', sunrise:'07:20', dhuhr:'12:15', asr:'14:45', maghrib:'16:45', isha:'18:15' }, // Dec
+        ];
+        const t = times[month];
+        document.getElementById('prayerFajr').querySelector('.prayer-item-time').textContent = t.fajr;
+        document.getElementById('prayerSunrise').querySelector('.prayer-item-time').textContent = t.sunrise;
+        document.getElementById('prayerDhuhr').querySelector('.prayer-item-time').textContent = t.dhuhr;
+        document.getElementById('prayerAsr').querySelector('.prayer-item-time').textContent = t.asr;
+        document.getElementById('prayerMaghrib').querySelector('.prayer-item-time').textContent = t.maghrib;
+        document.getElementById('prayerIsha').querySelector('.prayer-item-time').textContent = t.isha;
+
+        // Highlight next prayer
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const prayerTimes = [
+            { id: 'prayerFajr', time: t.fajr },
+            { id: 'prayerSunrise', time: t.sunrise },
+            { id: 'prayerDhuhr', time: t.dhuhr },
+            { id: 'prayerAsr', time: t.asr },
+            { id: 'prayerMaghrib', time: t.maghrib },
+            { id: 'prayerIsha', time: t.isha },
+        ];
+        prayerTimes.forEach(p => {
+            const [h, m] = p.time.split(':').map(Number);
+            const pMinutes = h * 60 + m;
+            const el = document.getElementById(p.id);
+            if (el) el.classList.toggle('active', nowMinutes < pMinutes);
+        });
+    }
+
+    loadPrayerTimes();
+
+    document.getElementById('prayerCityInput').addEventListener('change', () => {
+        loadPrayerTimes();
+        showToast('🕌', 'Время обновлено');
+    });
+}
+
+// Salute (Fireworks)
+function openSalute() {
+    document.getElementById('saluteOverlay').classList.add('show');
+    const canvas = document.getElementById('saluteCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles = [];
+    const rockets = [];
+    let saluteRunning = true;
+    window._saluteAnim = true;
+
+    class Rocket {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = canvas.height;
+            this.targetY = Math.random() * canvas.height * 0.4 + 50;
+            this.speed = 4 + Math.random() * 3;
+            this.alive = true;
+            this.color = `hsl(${Math.random() * 360}, 100%, 70%)`;
+        }
+        update() {
+            this.y -= this.speed;
+            if (this.y <= this.targetY) {
+                this.alive = false;
+                for (let i = 0; i < 80; i++) {
+                    const angle = (Math.PI * 2 / 80) * i;
+                    const speed = 1 + Math.random() * 4;
+                    particles.push(new Particle(this.x, this.y, Math.cos(angle) * speed, Math.sin(angle) * speed, this.color));
+                }
+            }
+        }
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            // Trail
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x, this.y + 20);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+    }
+
+    class Particle {
+        constructor(x, y, vx, vy, color) {
+            this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+            this.color = color;
+            this.alpha = 1;
+            this.decay = 0.01 + Math.random() * 0.02;
+            this.size = 1.5 + Math.random() * 2;
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vy += 0.04;
+            this.alpha -= this.decay;
+            this.vx *= 0.99;
+        }
+        draw() {
+            ctx.save();
+            ctx.globalAlpha = this.alpha;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    let frame = 0;
+    function animate() {
+        if (!window._saluteAnim) return;
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (frame % 20 === 0 && saluteRunning) rockets.push(new Rocket());
+        if (frame % 35 === 0 && saluteRunning) rockets.push(new Rocket());
+
+        for (let i = rockets.length - 1; i >= 0; i--) {
+            rockets[i].update();
+            rockets[i].draw();
+            if (!rockets[i].alive) rockets.splice(i, 1);
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update();
+            particles[i].draw();
+            if (particles[i].alpha <= 0) particles.splice(i, 1);
+        }
+
+        frame++;
+        if (frame > 300) saluteRunning = false; // Stop launching after ~5s
+        if (frame > 450) {
+            window._saluteAnim = false;
+            document.getElementById('saluteOverlay').classList.remove('show');
+            return;
+        }
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+}
+
+// Yes/No
+function openYesNo() {
+    document.getElementById('yesnoOverlay').classList.add('show');
+    const container = document.getElementById('yesnoContainer');
+    container.innerHTML = `
+        <div class="yesno-spinner">
+            <div class="yesno-circle" id="yesnoResult" style="background:transparent;color:var(--text-secondary);border-color:var(--text-secondary);font-size:48px">?</div>
+        </div>
+        <button class="yesno-btn" id="yesnoSpinBtn">🎲 Спросить</button>
+    `;
+
+    document.getElementById('yesnoSpinBtn').addEventListener('click', () => {
+        const isYes = Math.random() > 0.5;
+        const el = document.getElementById('yesnoResult');
+        el.style.animation = 'none';
+        el.offsetHeight; // reflow
+        el.style.animation = 'yesnoSpin 3s ease-out forwards';
+        el.style.background = 'transparent';
+        el.style.color = 'var(--text-secondary)';
+        el.style.borderColor = 'var(--text-secondary)';
+
+        setTimeout(() => {
+            if (isYes) {
+                el.textContent = 'ДА';
+                el.className = 'yesno-circle yes-result';
+            } else {
+                el.textContent = 'НЕТ';
+                el.className = 'yesno-circle no-result';
+            }
+        }, 3000);
+    });
+}
+
+// Double-click prevention
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+}, { passive: false });
+
+</script>
+</body>
+</html>
+
+    
